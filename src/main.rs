@@ -204,6 +204,72 @@ fn insertar(nodo_opt: Option<Box<Nodo>>, vuelo: Vuelo) -> Box<Nodo> {
 
     nodo
 }
+fn eliminar_vuelo(nodo_opt: Option<Box<Nodo>>, altitud: u32) -> Option<Box<Nodo>> {
+    let mut nodo = nodo_opt?; // Si el nodo es None, retorna None (termina la recursión)
+
+    // 1. Búsqueda del nodo a eliminar
+    if altitud < nodo.vuelo.altitud {
+        nodo.izquierdo = eliminar_vuelo(nodo.izquierdo.take(), altitud);
+    } else if altitud > nodo.vuelo.altitud {
+        nodo.derecho = eliminar_vuelo(nodo.derecho.take(), altitud);
+    } else {
+        // --- ¡NODO ENCONTRADO! ---
+
+        // Caso A y B: El nodo tiene un solo hijo o ninguno
+        if nodo.izquierdo.is_none() {
+            return nodo.derecho;
+        } else if nodo.derecho.is_none() {
+            return nodo.izquierdo;
+        }
+
+        // Caso C: El nodo tiene dos hijos
+        // Buscamos el "predecesor in-order" (el más alto del subárbol izquierdo)
+        let v_predecesor = {
+            let mut temp = nodo.izquierdo.as_ref().unwrap();
+            while let Some(ref d) = temp.derecho {
+                temp = d;
+            }
+            temp.vuelo.clone()
+        };
+
+        // Copiamos los datos del predecesor al nodo actual
+        nodo.vuelo = v_predecesor;
+        // Eliminamos el predecesor en el subárbol izquierdo
+        nodo.izquierdo = eliminar_vuelo(nodo.izquierdo.take(), nodo.vuelo.altitud);
+    }
+
+    // 2. Actualizar altura del nodo actual
+    actualizar_altura(&mut nodo);
+
+    // 3. Re-balancear el árbol (Vital para que siga siendo AVL)
+    let balance = obtener_balance(&nodo);
+
+    // Caso Izquierda-Izquierda
+    if balance > 1 && obtener_balance(nodo.izquierdo.as_ref().unwrap()) >= 0 {
+        return Some(rotar_derecha(nodo));
+    }
+
+    // Caso Izquierda-Derecha
+    if balance > 1 && obtener_balance(nodo.izquierdo.as_ref().unwrap()) < 0 {
+        let hijo_izq = nodo.izquierdo.take().unwrap();
+        nodo.izquierdo = Some(rotar_izquierda(hijo_izq));
+        return Some(rotar_derecha(nodo));
+    }
+
+    // Caso Derecha-Derecha
+    if balance < -1 && obtener_balance(nodo.derecho.as_ref().unwrap()) <= 0 {
+        return Some(rotar_izquierda(nodo));
+    }
+
+    // Caso Derecha-Izquierda
+    if balance < -1 && obtener_balance(nodo.derecho.as_ref().unwrap()) > 0 {
+        let hijo_der = nodo.derecho.take().unwrap();
+        nodo.derecho = Some(rotar_derecha(hijo_der));
+        return Some(rotar_izquierda(nodo));
+    }
+
+    Some(nodo)
+}
 
 fn main() {
     let mut radar: Option<Box<Nodo>> = None;
@@ -239,5 +305,23 @@ fn main() {
     let altitud_falsa = 10000;
     if buscar_vuelo(&radar, altitud_falsa).is_none() {
         println!("Radar: Espacio aéreo despejado a {} pies.", altitud_falsa);
+    }
+    println!("\n--- Fase 3: Simulación de Aterrizaje ---");
+    let altitud_aterrizaje = 3000;
+    println!(
+        "Control: Ordenando aterrizaje para el vuelo a {} pies...",
+        altitud_aterrizaje
+    );
+
+    // Llamada a la eliminación
+    radar = eliminar_vuelo(radar.take(), altitud_aterrizaje);
+
+    // Verificación
+    match buscar_vuelo(&radar, altitud_aterrizaje) {
+        Some(_) => println!("Error: El vuelo aún aparece en el radar."),
+        None => println!(
+            " Éxito: Espacio aéreo despejado a {} pies.",
+            altitud_aterrizaje
+        ),
     }
 }
