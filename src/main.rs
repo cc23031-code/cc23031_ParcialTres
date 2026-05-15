@@ -270,7 +270,22 @@ fn eliminar_vuelo(nodo_opt: Option<Box<Nodo>>, altitud: u32) -> Option<Box<Nodo>
 
     Some(nodo)
 }
-
+/// FASE 4: Sistema de Alerta de Emergencia
+/// Localiza el vuelo con la altitud más baja (el nodo más a la izquierda).
+fn vuelo_emergencia(nodo: &Option<Box<Nodo>>) -> Option<&Vuelo> {
+    match nodo {
+        None => None,
+        Some(n) => {
+            // Si no hay nada más a la izquierda, este es el vuelo más bajo
+            if n.izquierdo.is_none() {
+                Some(&n.vuelo)
+            } else {
+                // Si hay hijos a la izquierda, seguimos bajando
+                vuelo_emergencia(&n.izquierdo)
+            }
+        }
+    }
+}
 fn main() {
     let mut radar: Option<Box<Nodo>> = None;
 
@@ -293,7 +308,7 @@ fn main() {
 
     println!("--- Radar de Control Aéreo (AVL) ---");
     println!("Árbol construido con {} vuelos.", 6);
-    // Las fases 2, 3 y 4 se invocarán aquí
+
     // --- PRUEBA FASE 2 ---
     println!("\n--- Verificación de Localización ---");
     let altitud_objetivo = 4000;
@@ -324,4 +339,16 @@ fn main() {
             altitud_aterrizaje
         ),
     }
+    // --- PRUEBA FASE 4: Alerta de Emergencia ---
+    println!("\n--- Fase 4: Monitoreo de Seguridad ---");
+    if let Some(v) = vuelo_emergencia(&radar) {
+        println!(
+            "ALERTA DE SEGURIDAD: El vuelo más cercano al suelo es el {} a solo {} pies.",
+            v.id, v.altitud
+        );
+    } else {
+        println!("Radar: No hay vuelos activos en el sector.");
+    }
+
+    println!("\n--- Simulación Finalizada Correctamente ---");
 }
