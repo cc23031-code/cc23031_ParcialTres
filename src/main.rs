@@ -3,6 +3,71 @@
 // Fase 1: Código base con documentación de ownership
 // ============================================================
 /*
+# Motor de Tráfico Aéreo - AVL
+
+## FASE 1: Prueba de Escritorio
+Inserciones: [5000, 3000, 2000, 4000, 3500, 6000]
+
+### Paso 1: Insertar 5000
+        5000
+        (árbol balanceado, balance=0)
+
+### Paso 2: Insertar 3000
+        5000
+       /
+     3000
+     (balance=1, OK)
+
+### Paso 3: Insertar 2000
+        5000
+       /
+     3000
+     /
+   2000
+   (balance=2 en 5000 ❌ → ROTACIÓN SIMPLE DERECHA)
+   Resultado:
+        3000
+       /    \
+     2000   5000
+
+### Paso 4: Insertar 4000
+        3000
+       /    \
+     2000   5000
+            /
+          4000
+          (balance=-1 en 3000, OK)
+
+### Paso 5: Insertar 3500
+        3000
+       /    \
+     2000   5000
+            /
+          4000
+          /
+        3500
+        (balance=-2 en 3000 ❌ → ROTACIÓN DOBLE Derecha-Izquierda)
+        Primero rotación derecha en 5000, luego izquierda en 3000
+   Resultado:
+          3500
+         /    \
+       3000   5000
+       /      /
+     2000   4000
+
+### Paso 6: Insertar 6000
+          3500
+         /    \
+       3000   5000
+       /      /  \
+     2000   4000  6000
+     (balance=0, árbol balanceado ✅)
+
+## Rotaciones identificadas:
+- Paso 3 → Rotación SIMPLE DERECHA (caso Izquierda-Izquierda)
+- Paso 5 → Rotación DOBLE Derecha-Izquierda (caso Derecha-Izquierda)
+
+
 #[derive(Debug, Clone)]
 struct Vuelo {
     id: String,
