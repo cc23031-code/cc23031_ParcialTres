@@ -5,40 +5,40 @@
 /*
 # Motor de Tráfico Aéreo - AVL
 
-## FASE 1: Prueba de Escritorio
+FASE 1: Prueba de Escritorio
 Inserciones: [5000, 3000, 2000, 4000, 3500, 6000]
 
-### Paso 1: Insertar 5000
+ Paso 1: Insertar 5000
         5000
         (árbol balanceado, balance=0)
 
-### Paso 2: Insertar 3000
+ Paso 2: Insertar 3000
         5000
        /
      3000
-     (balance=1, OK)
+     (balance=1, )
 
-### Paso 3: Insertar 2000
+ Paso 3: Insertar 2000
         5000
        /
      3000
      /
    2000
-   (balance=2 en 5000 ❌ → ROTACIÓN SIMPLE DERECHA)
+   (balance=2 en 5000  → ROTACIÓN SIMPLE DERECHA)
    Resultado:
         3000
        /    \
      2000   5000
 
-### Paso 4: Insertar 4000
+ Paso 4: Insertar 4000
         3000
        /    \
      2000   5000
             /
           4000
-          (balance=-1 en 3000, OK)
+          (balance=-1 en 3000, )
 
-### Paso 5: Insertar 3500
+ Paso 5: Insertar 3500
         3000
        /    \
      2000   5000
@@ -46,7 +46,7 @@ Inserciones: [5000, 3000, 2000, 4000, 3500, 6000]
           4000
           /
         3500
-        (balance=-2 en 3000 ❌ → ROTACIÓN DOBLE Derecha-Izquierda)
+        (balance=-2 en 3000  → ROTACIÓN DOBLE Derecha-Izquierda)
         Primero rotación derecha en 5000, luego izquierda en 3000
    Resultado:
           3500
@@ -55,18 +55,18 @@ Inserciones: [5000, 3000, 2000, 4000, 3500, 6000]
        /      /
      2000   4000
 
-### Paso 6: Insertar 6000
+ Paso 6: Insertar 6000
           3500
          /    \
        3000   5000
        /      /  \
      2000   4000  6000
-     (balance=0, árbol balanceado ✅)
+     (balance=0, árbol balanceado )
 
 ## Rotaciones identificadas:
 - Paso 3 → Rotación SIMPLE DERECHA (caso Izquierda-Izquierda)
 - Paso 5 → Rotación DOBLE Derecha-Izquierda (caso Derecha-Izquierda)
-
+*/
 
 #[derive(Debug, Clone)]
 struct Vuelo {
@@ -133,6 +133,27 @@ fn rotar_izquierda(mut x: Box<Nodo>) -> Box<Nodo> {
     actualizar_altura(&mut y);
     y
 }
+/// FASE 2: Localización de Vuelos
+/// Busca un vuelo específico por su altitud.
+/// Retorna una referencia al vuelo si existe, garantizando que sea de solo lectura.
+fn buscar_vuelo(nodo: &Option<Box<Nodo>>, altitud: u32) -> Option<&Vuelo> {
+    // .as_ref() convierte el Option<Box<Nodo>> en Option<&Box<Nodo>>
+    // permitiéndonos leer el contenido sin tomar posesión (ownership).
+    match nodo.as_ref() {
+        None => None, // No se encontró ningún vuelo a esa altitud
+        Some(n) => {
+            if altitud == n.vuelo.altitud {
+                Some(&n.vuelo) // Vuelo encontrado, retornamos la referencia
+            } else if altitud < n.vuelo.altitud {
+                // Si la altitud buscada es menor, buscamos en el subárbol izquierdo
+                buscar_vuelo(&n.izquierdo, altitud)
+            } else {
+                // Si es mayor, buscamos en el subárbol derecho
+                buscar_vuelo(&n.derecho, altitud)
+            }
+        }
+    }
+}
 
 // --- INSERCIÓN ---
 
@@ -142,34 +163,40 @@ fn insertar(nodo_opt: Option<Box<Nodo>>, vuelo: Vuelo) -> Box<Nodo> {
         Some(n) => n,
     };
 
-    if vuelo.altitud < nodo.vuelo.altitud {
-        // take() libera el hijo para pasarlo por valor a la llamada recursiva
-        nodo.izquierdo = Some(insertar(nodo.izquierdo.take(), vuelo));
-    } else if vuelo.altitud > nodo.vuelo.altitud {
-        nodo.derecho = Some(insertar(nodo.derecho.take(), vuelo));
+    // GUARDAMOS LA ALTITUD antes de que 'vuelo' se mueva
+    let altitud_vuelo = vuelo.altitud;
+
+    if altitud_vuelo < nodo.vuelo.altitud {
+        // Usamos .clone() para que 'vuelo' siga existiendo para las validaciones de abajo
+        nodo.izquierdo = Some(insertar(nodo.izquierdo.take(), vuelo.clone()));
+    } else if altitud_vuelo > nodo.vuelo.altitud {
+        nodo.derecho = Some(insertar(nodo.derecho.take(), vuelo.clone()));
     } else {
-        return nodo; // altitud duplicada, ignorar
+        return nodo;
     }
 
     actualizar_altura(&mut nodo);
     let balance = obtener_balance(&nodo);
 
-    // Caso LL — subárbol izquierdo, hijo izquierdo
-    if balance > 1 && vuelo.altitud < nodo.izquierdo.as_ref().unwrap().vuelo.altitud {
+    // --- RE-BALANCEO ---
+    // Usamos 'altitud_vuelo' (la copia simple) en lugar de 'vuelo.altitud'
+
+    // Caso Izquierda-Izquierda
+    if balance > 1 && altitud_vuelo < nodo.izquierdo.as_ref().unwrap().vuelo.altitud {
         return rotar_derecha(nodo);
     }
-    // Caso RR — subárbol derecho, hijo derecho
-    if balance < -1 && vuelo.altitud > nodo.derecho.as_ref().unwrap().vuelo.altitud {
+    // Caso Derecha-Derecha
+    if balance < -1 && altitud_vuelo > nodo.derecho.as_ref().unwrap().vuelo.altitud {
         return rotar_izquierda(nodo);
     }
-    // Caso LR — subárbol izquierdo, hijo derecho
-    if balance > 1 && vuelo.altitud > nodo.izquierdo.as_ref().unwrap().vuelo.altitud {
+    // Caso Izquierda-Derecha
+    if balance > 1 && altitud_vuelo > nodo.izquierdo.as_ref().unwrap().vuelo.altitud {
         let hijo_izq = nodo.izquierdo.take().unwrap();
         nodo.izquierdo = Some(rotar_izquierda(hijo_izq));
         return rotar_derecha(nodo);
     }
-    // Caso RL — subárbol derecho, hijo izquierdo
-    if balance < -1 && vuelo.altitud < nodo.derecho.as_ref().unwrap().vuelo.altitud {
+    // Caso Derecha-Izquierda
+    if balance < -1 && altitud_vuelo < nodo.derecho.as_ref().unwrap().vuelo.altitud {
         let hijo_der = nodo.derecho.take().unwrap();
         nodo.derecho = Some(rotar_derecha(hijo_der));
         return rotar_izquierda(nodo);
@@ -182,17 +209,35 @@ fn main() {
     let mut radar: Option<Box<Nodo>> = None;
 
     let datos = vec![
-        ("AV123", 5000), ("UA456", 3000), ("IB101", 2000),
-        ("AF999", 4000), ("TA222", 3500), ("AM777", 6000),
+        ("AV123", 5000),
+        ("UA456", 3000),
+        ("IB101", 2000),
+        ("AF999", 4000),
+        ("TA222", 3500),
+        ("AM777", 6000),
     ];
 
     for (id, alt) in datos {
-        let v = Vuelo { id: id.to_string(), altitud: alt };
+        let v = Vuelo {
+            id: id.to_string(),
+            altitud: alt,
+        };
         radar = Some(insertar(radar.take(), v));
     }
 
     println!("--- Radar de Control Aéreo (AVL) ---");
     println!("Árbol construido con {} vuelos.", 6);
     // Las fases 2, 3 y 4 se invocarán aquí
+    // --- PRUEBA FASE 2 ---
+    println!("\n--- Verificación de Localización ---");
+    let altitud_objetivo = 4000;
+    match buscar_vuelo(&radar, altitud_objetivo) {
+        Some(v) => println!("Radar: Vuelo {} identificado a {} pies.", v.id, v.altitud),
+        None => println!("Radar: No se detectan vuelos a {} pies.", altitud_objetivo),
+    }
+
+    let altitud_falsa = 10000;
+    if buscar_vuelo(&radar, altitud_falsa).is_none() {
+        println!("Radar: Espacio aéreo despejado a {} pies.", altitud_falsa);
+    }
 }
-*/
